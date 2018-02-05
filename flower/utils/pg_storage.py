@@ -56,6 +56,7 @@ def event_callback(state, event):
         except (socketerror, pg8000.InterfaceError):
             if retries_remaining > 0:
                 logger.warning('Flower encountered a connection error with PostGreSQL database. Retrying.')
+                retries_remaining = retries_remaining - 1
                 open_connection(**_connection_options)
                 cursor = connection.cursor()
                 continue
@@ -123,6 +124,7 @@ def get_all_events():
         except (socketerror, pg8000.InterfaceError):
             if retries_remaining > 0:
                 logger.warning('Flower encountered a connection error with PostGreSQL database. Retrying.')
+                retries_remaining = retries_remaining - 1
                 open_connection(**_connection_options)
                 cursor = connection.cursor()
                 continue
