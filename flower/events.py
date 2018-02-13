@@ -56,8 +56,8 @@ class Events(threading.Thread):
     events_enable_interval = 5000
 
     def __init__(self, capp, db=None, persistent=False,
-                 enable_events=True, io_loop=None, storage_driver=None,
-                 storage_max_events=None, **kwargs):
+                 enable_events=True, io_loop=None, max_tasks_in_memory=None,
+                 storage_driver=None, storage_max_events=None, **kwargs):
         threading.Thread.__init__(self)
         self.daemon = True
 
@@ -68,6 +68,7 @@ class Events(threading.Thread):
         self.persistent = persistent
         self.storage_driver = storage_driver
         self.storage_max_events = storage_max_events
+        self.max_tasks_in_memory = max_tasks_in_memory
         self.enable_events = enable_events
         self.state = None
 
@@ -97,7 +98,8 @@ class Events(threading.Thread):
                 pg_storage.skip_callback = True
 
                 try:
-                    for event in pg_storage.get_events(max_events=self.storage_max_events):
+                    for event in pg_storage.get_events(max_events=self.storage_max_events,
+                                                       max_tasks=self.max_tasks_in_memory):
                         self.state.event(event, websockets=False)
                 finally:
                     pg_storage.skip_callback = False

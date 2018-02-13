@@ -18,23 +18,40 @@ _schema = (
     (
         id SERIAL PRIMARY KEY,
         time TIMESTAMP NOT NULL,
+        uuid VARCHAR(36) NOT NULL,
         data JSONB NOT NULL,
         unique (time, data)
     )""",
-    "CREATE INDEX event_index ON events USING GIN (data)",
     "CREATE INDEX event_time_index ON events (time ASC)",
+    "CREATE INDEX event_uuid_index ON events (uuid ASC)",
 )
 
-_add_event = """INSERT INTO events (time, data) VALUES (%s, %s) ON CONFLICT DO NOTHING"""
+_add_event = """INSERT INTO events (time, uuid, data) VALUES (%s, %s, %s) ON CONFLICT DO NOTHING"""
 
-_get_events = """SELECT data FROM (
-              SELECT *
-              FROM events
-              ORDER BY id DESC
-              LIMIT {max_events}
-              ) subevents
-              ORDER BY time ASC
-              """
+_get_max_events = """
+                    SELECT data FROM (
+                        SELECT *
+                        FROM events
+                        ORDER BY id DESC
+                        LIMIT {max_events}
+                    ) subevents
+                    ORDER BY time ASC
+                    """
+
+_get_task_events = """
+                    SELECT data
+                    FROM events
+                    WHERE uuid IN (
+                        SELECT uuid FROM (
+                            SELECT DISTINCT ON (uuid) uuid, time
+                            FROM events
+                            ORDER BY uuid, time DESC
+                        ) uuid_list
+                        ORDER BY time DESC
+                        LIMIT {max_tasks}
+                    )
+                    ORDER BY time ASC
+                    """
 
 _ignored_events = {
     'worker-offline',
@@ -51,6 +68,7 @@ def event_callback(state, event):
     try:
         cursor.execute(_add_event, (
             datetime.fromtimestamp(event['timestamp']),
+            event['uuid'],
             json.dumps(event)
         ))
         connection.commit()
@@ -91,11 +109,18 @@ def close_connection():
         connection = None
 
 
-def get_events(max_events):
+def get_events(max_events, max_tasks):
     logger.debug('Events loading from postgresql persistence backend')
     cursor = connection.cursor()
     try:
-        cursor.execute(_get_events.format(max_events=max_events))
+        if max_events:
+            if max_events == -1:
+                query = _get_max_events.format(max_events='ALL')
+            else:
+                query = _get_max_events.format(max_events=max_events)
+        else:
+            query = _get_task_events.format(max_tasks=max_tasks)
+        cursor.execute(query)
         for row in cursor:
             yield row[0]
         logger.debug('{} Events loaded from postgresql persistence backend'.format(cursor.rowcount))
