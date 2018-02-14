@@ -150,7 +150,7 @@ def get_events(max_events, max_tasks):
                 query = _get_task_events.format(max_tasks=max_tasks)
             cursor.execute(query)
             for row in cursor:
-                yield row[0]
+                yield json.loads(row[0])
             logger.debug('{} Events loaded from postgresql persistence backend'.format(cursor.rowcount))
         except (socketerror, pg8000.InterfaceError):
             if attempt < REQ_MAX_RETRIES:
