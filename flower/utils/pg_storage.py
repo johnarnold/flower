@@ -138,7 +138,6 @@ def close_connection():
 def get_events(max_events, max_tasks):
     logger.debug('Events loading from postgresql persistence backend')
     cursor = connection.cursor()
-    retries_remaining = REQ_MAX_RETRIES
     for attempt in range(0, REQ_MAX_RETRIES):
         try:
             if max_events:
