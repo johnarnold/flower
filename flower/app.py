@@ -32,7 +32,8 @@ class Flower(tornado.web.Application):
         self.io_loop = io_loop or ioloop.IOLoop.instance()
         self.ssl_options = kwargs.get('ssl_options', None)
 
-        if events is None and self.options.storage_driver == 'postgres':
+        if events is None and self.options.persistent is True and \
+                self.options.storage_driver == 'postgres':
             from flower.utils import pg_storage
             pg_storage.open_connection(
                 self.options.pg_user,
